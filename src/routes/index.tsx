@@ -1,594 +1,548 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Activity,
-  AlertTriangle,
-  BadgeCheck,
-  Bot,
-  Clock,
-  Coffee,
-  Cpu,
-  FlaskConical,
-  Map,
-  Moon,
-  PillBottle,
-  Plus,
-  ScanLine,
-  ShieldAlert,
   ShieldCheck,
-  Sparkles,
-  Sun,
+  AlertTriangle,
+  Clock,
+  FileText,
+  Pill,
+  Plus,
   Trash2,
-  TrendingUp,
-  Utensils,
-  Zap,
+  Stethoscope,
+  CalendarClock,
+  Landmark,
+  Type,
+  UserRound,
+  Info,
+  CheckCircle2,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "VitAlign — Agentic Drug Safety & Chrono-Nutrition" },
+      { title: "VitAlign — Medicine Safety and Daily Schedule Assistant" },
       {
         name: "description",
         content:
-          "VitAlign is an SIH 2026 MedTech prototype: medicine authenticity scanning, agentic ADR triage, chrono-nutrition timing and CDSCO surveillance.",
+          "Check your medicines for genuineness, understand possible side effects, follow a clear daily medicine schedule, and read government safety notices.",
       },
-      { property: "og:title", content: "VitAlign — Agentic Drug Safety & Chrono-Nutrition" },
+      { property: "og:title", content: "VitAlign — Medicine Safety and Daily Schedule Assistant" },
       {
         property: "og:description",
         content:
-          "Scan medicines against CDSCO recalls, run 3-agent ADR attribution, and optimise drug timing with chrono-nutrition.",
+          "Verify medicines, review possible side effects, and follow a simple daily medicine schedule.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: VitAlign,
+  component: VitAlignPage,
 });
 
-type Drug = {
+type Status = "verified" | "recalled";
+
+type Medicine = {
   id: string;
   name: string;
-  dose: string;
-  batch: string;
-  expiry: string;
-  status: "verified" | "recalled";
+  purpose: string;
+  status: Status;
   note: string;
-  schedule: string;
-  timing: string;
 };
 
-const PRESETS: Omit<Drug, "id">[] = [
+const SAMPLE_MEDICINES: Medicine[] = [
   {
-    name: "Telmisartan",
-    dose: "40mg",
-    batch: "TL-2291-A",
-    expiry: "11/2027",
+    id: "telmisartan",
+    name: "Telmisartan 40mg",
+    purpose: "For Blood Pressure",
     status: "verified",
-    note: "Antihypertensive — authentic supply chain",
-    schedule: "Schedule H",
-    timing: "Morning, after food",
+    note: "Batch TL-4471 checked against the national medicine register.",
   },
   {
-    name: "Pantoprazole",
-    dose: "40mg",
-    batch: "PN-8842-C",
-    expiry: "03/2028",
+    id: "pantoprazole",
+    name: "Pantoprazole 40mg",
+    purpose: "For Acidity and Stomach Comfort",
     status: "verified",
-    note: "PPI — strict pre-meal window",
-    schedule: "Schedule H",
-    timing: "30 min before breakfast",
+    note: "Batch PN-1180 checked against the national medicine register.",
   },
   {
-    name: "Atorvastatin",
-    dose: "20mg",
-    batch: "AT-FAKE-01",
-    expiry: "07/2026",
+    id: "atorvastatin",
+    name: "Atorvastatin 20mg",
+    purpose: "For Cholesterol",
     status: "recalled",
-    note: "CDSCO NSQ recall — substandard assay reported",
-    schedule: "Schedule H",
-    timing: "Bedtime",
+    note: "Batch AT-9032 failed a quality test in a government laboratory.",
   },
   {
-    name: "Ciprofloxacin",
-    dose: "500mg",
-    batch: "CF-5510-B",
-    expiry: "01/2028",
+    id: "ciprofloxacin",
+    name: "Ciprofloxacin 500mg",
+    purpose: "Antibiotic for Infection",
     status: "verified",
-    note: "Dairy/calcium chelation alert — 2 hr separation",
-    schedule: "Schedule H2",
-    timing: "Lunch + Evening, no milk",
+    note: "Genuine batch. Food timing care needed — see Daily Medicine Schedule.",
   },
 ];
 
-const SYMPTOMS = ["Dizziness", "Muscle Weakness", "Gastric Distress"];
+const SYMPTOMS = [
+  { id: "dizzy", label: "Dizziness or lightheadedness" },
+  { id: "muscle", label: "Muscle pain or weakness" },
+  { id: "stomach", label: "Stomach discomfort or nausea" },
+  { id: "rash", label: "Skin rash or itching" },
+];
 
-const HOTSPOTS = [
-  { state: "Maharashtra", scans: 4820, flagged: 142, batches: "AT-FAKE-01, PN-3320", risk: "High" },
-  { state: "Delhi NCR", scans: 3960, flagged: 121, batches: "AT-FAKE-01", risk: "High" },
-  { state: "Gujarat", scans: 3110, flagged: 74, batches: "CF-1180", risk: "Medium" },
-  { state: "Uttar Pradesh", scans: 2890, flagged: 63, batches: "TL-7741", risk: "Medium" },
-  { state: "Tamil Nadu", scans: 2410, flagged: 28, batches: "—", risk: "Low" },
-  { state: "West Bengal", scans: 1980, flagged: 21, batches: "PN-9021", risk: "Low" },
+const CAUSES = [
+  {
+    percent: 55,
+    label: "Interaction between two of your prescribed medicines",
+    tone: "primary" as const,
+  },
+  {
+    percent: 35,
+    label: "Quality defect detected in recalled medicine batch",
+    tone: "danger" as const,
+  },
+  {
+    percent: 10,
+    label: "Medicine taken at an improper time relative to meals",
+    tone: "warn" as const,
+  },
+];
+
+const SCHEDULE = [
+  {
+    time: "Morning — Before Breakfast",
+    clock: "7:30 AM",
+    text: "Take Pantoprazole with water 30 minutes before food.",
+  },
+  {
+    time: "Afternoon — After Lunch",
+    clock: "1:30 PM",
+    text: "Take your Blood Pressure medicine with or immediately after food.",
+  },
+  {
+    time: "Night — Before Sleep",
+    clock: "9:30 PM",
+    text: "Take your Cholesterol medicine before bedtime.",
+  },
+];
+
+const NOTICES = [
+  { state: "Maharashtra", medicine: "Atorvastatin 20mg", batch: "AT-9032", issue: "Failed quality test", date: "12 Aug 2026" },
+  { state: "Delhi", medicine: "Metformin 500mg", batch: "MT-2210", issue: "Incorrect medicine strength", date: "09 Aug 2026" },
+  { state: "Gujarat", medicine: "Amoxicillin 500mg", batch: "AM-7745", issue: "Packaging and labelling fault", date: "04 Aug 2026" },
+  { state: "Tamil Nadu", medicine: "Paracetamol 650mg", batch: "PC-3391", issue: "Failed dissolution test", date: "28 Jul 2026" },
+  { state: "West Bengal", medicine: "Ranitidine 150mg", batch: "RN-5502", issue: "Impurity found in sample", date: "21 Jul 2026" },
 ];
 
 const TABS = [
-  { key: "regimen", label: "Regimen & Scanner", icon: ScanLine },
-  { key: "adr", label: "ADR Agent Triage", icon: Bot },
-  { key: "chrono", label: "Chrono Timeline", icon: Clock },
-  { key: "heatmap", label: "Regulator Heatmap", icon: Map },
+  { id: "medicines", label: "Check Medicines", icon: Pill },
+  { id: "symptoms", label: "Symptom Safety Check", icon: Stethoscope },
+  { id: "schedule", label: "Daily Medicine Schedule", icon: CalendarClock },
+  { id: "notices", label: "Government Safety Notices", icon: Landmark },
 ] as const;
 
-type TabKey = (typeof TABS)[number]["key"];
+type TabId = (typeof TABS)[number]["id"];
 
-let uid = 0;
-const makeId = () => `d${++uid}`;
+const STORAGE_KEY = "vitalign.medicines";
 
-function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`rounded-2xl border border-border bg-card/70 backdrop-blur-sm ${className}`}>
-      {children}
-    </div>
-  );
-}
+function VitAlignPage() {
+  const [tab, setTab] = useState<TabId>("medicines");
+  const [large, setLarge] = useState(false);
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [showFindings, setShowFindings] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
-function StatusBadge({ status }: { status: Drug["status"] }) {
-  return status === "verified" ? (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/12 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-primary">
-      <ShieldCheck className="h-3.5 w-3.5" /> CDSCO VERIFIED
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/15 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-destructive">
-      <ShieldAlert className="h-3.5 w-3.5" /> NSQ RECALLED
-    </span>
-  );
-}
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) setMedicines(JSON.parse(raw));
+    } catch {
+      /* ignore */
+    }
+    setLoaded(true);
+  }, []);
 
-function VitAlign() {
-  const [tab, setTab] = useState<TabKey>("regimen");
-  const [drugs, setDrugs] = useState<Drug[]>([]);
-  const [symptoms, setSymptoms] = useState<string[]>([]);
-  const [triage, setTriage] = useState<null | { ran: boolean }>(null);
-  const [scanning, setScanning] = useState<string | null>(null);
+  useEffect(() => {
+    if (!loaded) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(medicines));
+    } catch {
+      /* ignore */
+    }
+  }, [medicines, loaded]);
 
-  const hasRecall = drugs.some((d) => d.status === "recalled");
-  const hasCipro = drugs.some((d) => d.name === "Ciprofloxacin");
-  const hasStatin = drugs.some((d) => d.name === "Atorvastatin");
-  const hasPPI = drugs.some((d) => d.name === "Pantoprazole");
-
-  const addDrug = (preset: Omit<Drug, "id">) => {
-    setScanning(preset.name);
-    setTimeout(() => {
-      setDrugs((prev) => [...prev, { ...preset, id: makeId() }]);
-      setScanning(null);
-    }, 450);
+  const addMedicine = (m: Medicine) => {
+    setMedicines((prev) => (prev.some((p) => p.id === m.id) ? prev : [...prev, m]));
   };
 
-  const loadDemo = () => {
-    setDrugs(PRESETS.map((p) => ({ ...p, id: makeId() })));
-    setSymptoms(["Dizziness", "Muscle Weakness"]);
-    setTriage(null);
-    setTab("regimen");
+  const loadSample = () => {
+    setMedicines(SAMPLE_MEDICINES);
+    setSelected(["dizzy", "muscle"]);
+    setShowFindings(false);
+    setTab("medicines");
   };
 
-  const attribution = useMemo(() => {
-    const ddi = hasStatin && hasCipro ? 55 : 40;
-    const batch = hasRecall ? 35 : 15;
-    const food = 100 - ddi - batch;
-    return [
-      { label: "Drug–Drug Interaction (DDInter)", value: ddi, tone: "bg-destructive" },
-      { label: "Substandard / Recalled Batch", value: batch, tone: "bg-warning" },
-      { label: "Food & Timing Conflict", value: food, tone: "bg-accent" },
-    ];
-  }, [hasStatin, hasCipro, hasRecall]);
+  const base = large ? "text-[19px]" : "text-[17px]";
 
   return (
-    <main className="min-h-screen bg-background bg-grid text-foreground">
-      <header className="sticky top-0 z-20 border-b border-border bg-background/85 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/15 text-primary panel-glow">
-              <Activity className="h-5 w-5" />
+    <div className={`min-h-screen bg-background text-foreground ${base} leading-relaxed`}>
+      <header className="border-b border-border bg-card">
+        <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-5 sm:flex sm:flex-wrap sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="grid size-12 shrink-0 place-items-center rounded-md bg-primary">
+              <ShieldCheck className="size-7 text-primary-foreground" aria-hidden="true" />
             </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight text-gradient-brand">VitAlign</h1>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                Agentic Drug Safety Layer
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-bold tracking-tight sm:text-2xl">VitAlign</h1>
+              <p className="truncate text-sm text-muted-foreground sm:text-base">
+                Medicine Safety and Daily Schedule Assistant
               </p>
             </div>
           </div>
-          <span className="rounded-full border border-accent/40 bg-accent/10 px-3 py-1 text-[11px] font-semibold text-accent">
-            SIH 2026 · MedTech Prototype
-          </span>
-          <button
-            onClick={loadDemo}
-            className="ml-auto inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:brightness-110 active:scale-[0.98]"
-          >
-            <Sparkles className="h-4 w-4" /> Quick Load Demo Patient
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setLarge((v) => !v)}
+              aria-pressed={large}
+              className="inline-flex min-h-12 items-center gap-2 rounded-md border border-border bg-card px-4 font-semibold hover:bg-secondary"
+            >
+              <Type className="size-5" aria-hidden="true" />
+              {large ? "Normal Text Size" : "Larger Text Size"}
+            </button>
+            <button
+              type="button"
+              onClick={loadSample}
+              className="inline-flex min-h-12 items-center gap-2 rounded-md bg-primary px-5 font-semibold text-primary-foreground hover:opacity-90"
+            >
+              <UserRound className="size-5" aria-hidden="true" />
+              Load Sample Patient Case
+            </button>
+          </div>
         </div>
-        <nav className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-3 pb-2 sm:px-5">
+      </header>
+
+      <main className="mx-auto max-w-6xl px-5 py-8">
+        <nav aria-label="Sections" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {TABS.map((t) => {
             const Icon = t.icon;
-            const active = tab === t.key;
+            const active = tab === t.id;
             return (
               <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`inline-flex shrink-0 items-center gap-2 rounded-t-xl border-b-2 px-4 py-2.5 text-sm font-medium transition ${
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                aria-current={active ? "page" : undefined}
+                className={`inline-flex min-h-16 items-center gap-3 rounded-md border-2 px-4 text-left font-semibold transition-colors ${
                   active
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card hover:bg-secondary"
                 }`}
               >
-                <Icon className="h-4 w-4" /> {t.label}
+                <Icon className="size-6 shrink-0" aria-hidden="true" />
+                <span className="min-w-0">{t.label}</span>
               </button>
             );
           })}
         </nav>
-      </header>
 
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-        {tab === "regimen" && (
-          <section className="grid gap-6 lg:grid-cols-[1fr_1.15fr]">
-            <Card className="p-5">
-              <h2 className="flex items-center gap-2 text-base font-semibold">
-                <ScanLine className="h-4 w-4 text-primary" /> Scan Simulator
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Tap a strip to simulate a QR/2D barcode scan against the CDSCO registry.
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {PRESETS.map((p) => (
-                  <button
-                    key={p.name}
-                    onClick={() => addDrug(p)}
-                    className="group rounded-xl border border-border bg-secondary/40 p-4 text-left transition hover:border-primary/50 hover:bg-secondary/70"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2 font-semibold">
-                        <PillBottle className="h-4 w-4 text-accent" />
-                        {p.name} {p.dose}
-                      </div>
-                      <Plus className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
-                    </div>
-                    <p className="mt-2 text-xs text-muted-foreground">{p.note}</p>
-                    <div className="mt-3">
-                      {scanning === p.name ? (
-                        <span className="text-[11px] font-semibold text-accent">Scanning…</span>
-                      ) : (
-                        <StatusBadge status={p.status} />
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </Card>
+        <div className="mt-8">
+          {tab === "medicines" && (
+            <MedicinesTab medicines={medicines} onAdd={addMedicine} onRemove={(id) => setMedicines((p) => p.filter((m) => m.id !== id))} />
+          )}
+          {tab === "symptoms" && (
+            <SymptomsTab
+              selected={selected}
+              toggle={(id) =>
+                setSelected((p) => (p.includes(id) ? p.filter((s) => s !== id) : [...p, id]))
+              }
+              showFindings={showFindings}
+              onCheck={() => setShowFindings(true)}
+            />
+          )}
+          {tab === "schedule" && <ScheduleTab />}
+          {tab === "notices" && <NoticesTab verified={medicines.filter((m) => m.status === "verified").length} total={medicines.length} />}
+        </div>
 
-            <Card className="p-5">
-              <div className="flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-base font-semibold">
-                  <FlaskConical className="h-4 w-4 text-primary" /> Active Regimen
-                  <span className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                    {drugs.length}
-                  </span>
-                </h2>
-                {drugs.length > 0 && (
-                  <button
-                    onClick={() => setDrugs([])}
-                    className="text-xs text-muted-foreground hover:text-destructive"
-                  >
-                    Clear all
-                  </button>
-                )}
-              </div>
-
-              {hasRecall && (
-                <div className="mt-4 flex items-start gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <p>
-                    Recalled batch detected in this regimen — CDSCO NSQ alert #AT-FAKE-01. Stop
-                    intake and report to the nearest pharmacovigilance centre.
-                  </p>
-                </div>
-              )}
-
-              <div className="mt-4 space-y-3">
-                {drugs.length === 0 && (
-                  <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-                    No medicines scanned yet. Use the simulator or load the demo patient.
-                  </p>
-                )}
-                {drugs.map((d) => (
-                  <div
-                    key={d.id}
-                    className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-secondary/30 p-4"
-                  >
-                    <div className="min-w-40 flex-1">
-                      <div className="font-semibold">
-                        {d.name} <span className="text-muted-foreground">{d.dose}</span>
-                      </div>
-                      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                        <span>Batch: {d.batch}</span>
-                        <span>Exp: {d.expiry}</span>
-                        <span>{d.schedule}</span>
-                        <span className="text-accent">{d.timing}</span>
-                      </div>
-                    </div>
-                    <StatusBadge status={d.status} />
-                    <button
-                      onClick={() => setDrugs((prev) => prev.filter((x) => x.id !== d.id))}
-                      className="rounded-lg p-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
-                      aria-label={`Remove ${d.name}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </section>
-        )}
-
-        {tab === "adr" && (
-          <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-            <Card className="p-5">
-              <h2 className="flex items-center gap-2 text-base font-semibold">
-                <Zap className="h-4 w-4 text-primary" /> Reported Symptoms
-              </h2>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {SYMPTOMS.map((s) => {
-                  const on = symptoms.includes(s);
-                  return (
-                    <button
-                      key={s}
-                      onClick={() =>
-                        setSymptoms((prev) =>
-                          prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
-                        )
-                      }
-                      className={`rounded-full border px-4 py-2 text-sm transition ${
-                        on
-                          ? "border-primary bg-primary/15 text-primary"
-                          : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  );
-                })}
-              </div>
-              <button
-                onClick={() => setTriage({ ran: true })}
-                disabled={symptoms.length === 0 || drugs.length === 0}
-                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Cpu className="h-4 w-4" /> Run Triage Analysis
-              </button>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Requires at least one scanned medicine and one symptom.
-              </p>
-            </Card>
-
-            <Card className="p-5">
-              <h2 className="flex items-center gap-2 text-base font-semibold">
-                <Bot className="h-4 w-4 text-primary" /> Agent Orchestration
-              </h2>
-              {!triage ? (
-                <p className="mt-6 rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-                  Run the triage to see the 3-agent breakdown.
-                </p>
-              ) : (
-                <div className="mt-4 space-y-3">
-                  <AgentRow
-                    icon={BadgeCheck}
-                    title="Authenticity Agent · CDSCO registry"
-                    tone={hasRecall ? "bad" : "good"}
-                    text={
-                      hasRecall
-                        ? "Batch #AT-FAKE-01 matches an active NSQ recall notice. Assay variance flagged."
-                        : "All batch IDs matched authentic manufacturer records."
-                    }
-                  />
-                  <AgentRow
-                    icon={Activity}
-                    title="Drug–Drug Interaction Agent · DDInter graph"
-                    tone={hasStatin && hasCipro ? "bad" : "warn"}
-                    text={
-                      hasStatin && hasCipro
-                        ? "Severity 0.82 — Ciprofloxacin inhibits CYP3A4 clearance of Atorvastatin, raising myopathy risk."
-                        : "Severity 0.31 — no major pairwise conflicts in the current regimen."
-                    }
-                  />
-                  <AgentRow
-                    icon={Utensils}
-                    title="Chrono-Nutrition Agent"
-                    tone={hasCipro || hasPPI ? "warn" : "good"}
-                    text={
-                      hasCipro
-                        ? "Conflict: Ciprofloxacin logged near dairy intake — calcium chelation reduces absorption ~40%."
-                        : hasPPI
-                          ? "Pantoprazole taken with food — efficacy reduced, shift 30 min pre-breakfast."
-                          : "No timing conflicts detected."
-                    }
-                  />
-
-                  <div className="mt-6">
-                    <h3 className="text-sm font-semibold">Probabilistic Attribution</h3>
-                    <div className="mt-3 space-y-3">
-                      {attribution.map((a) => (
-                        <div key={a.label}>
-                          <div className="flex justify-between text-xs text-muted-foreground">
-                            <span>{a.label}</span>
-                            <span className="font-semibold text-foreground">{a.value}%</span>
-                          </div>
-                          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted">
-                            <div
-                              className={`h-full rounded-full ${a.tone} transition-all duration-700`}
-                              style={{ width: `${a.value}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </Card>
-          </section>
-        )}
-
-        {tab === "chrono" && (
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {[
-              {
-                icon: Sun,
-                slot: "Morning · 07:00",
-                items: [
-                  "Pantoprazole 40mg — 30 mins BEFORE breakfast",
-                  "Telmisartan 40mg — after breakfast, with water",
-                ],
-              },
-              {
-                icon: Coffee,
-                slot: "Lunch · 13:00",
-                items: [
-                  "Ciprofloxacin 500mg — 2 hrs away from milk/curd",
-                  "Avoid antacids and calcium supplements",
-                ],
-              },
-              {
-                icon: Utensils,
-                slot: "Evening · 19:00",
-                items: [
-                  "Ciprofloxacin 500mg — second dose",
-                  "Hydration target: 500ml before next dose",
-                ],
-              },
-              {
-                icon: Moon,
-                slot: "Bedtime · 22:30",
-                items: [
-                  "Atorvastatin 20mg — peak HMG-CoA synthesis window",
-                  "No grapefruit juice within 4 hrs",
-                ],
-              },
-            ].map((b) => {
-              const Icon = b.icon;
-              return (
-                <Card key={b.slot} className="p-5">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-accent">
-                    <Icon className="h-4 w-4" /> {b.slot}
-                  </div>
-                  <ul className="mt-4 space-y-3">
-                    {b.items.map((i) => (
-                      <li
-                        key={i}
-                        className="rounded-lg border border-border bg-secondary/30 p-3 text-sm text-muted-foreground"
-                      >
-                        {i}
-                      </li>
-                    ))}
-                  </ul>
-                </Card>
-              );
-            })}
-          </section>
-        )}
-
-        {tab === "heatmap" && (
-          <section className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-3">
-              {[
-                { icon: ScanLine, label: "Total Scans (30d)", value: "19,170" },
-                { icon: TrendingUp, label: "NSQ Detection Rate", value: "10.5%" },
-                { icon: AlertTriangle, label: "Flagged Hotspots", value: "12 districts" },
-              ].map((m) => {
-                const Icon = m.icon;
-                return (
-                  <Card key={m.label} className="p-5">
-                    <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
-                      <Icon className="h-4 w-4 text-primary" /> {m.label}
-                    </div>
-                    <div className="mt-3 text-3xl font-bold text-gradient-brand">{m.value}</div>
-                  </Card>
-                );
-              })}
-            </div>
-
-            <Card className="overflow-hidden">
-              <div className="border-b border-border p-5">
-                <h2 className="flex items-center gap-2 text-base font-semibold">
-                  <Map className="h-4 w-4 text-primary" /> Regional Batch Surveillance
-                </h2>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] text-sm">
-                  <thead className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
-                    <tr>
-                      <th className="px-5 py-3 text-left">State / Region</th>
-                      <th className="px-5 py-3 text-right">Scans</th>
-                      <th className="px-5 py-3 text-right">Flagged</th>
-                      <th className="px-5 py-3 text-left">Batches</th>
-                      <th className="px-5 py-3 text-left">Risk</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {HOTSPOTS.map((h) => (
-                      <tr key={h.state} className="border-t border-border">
-                        <td className="px-5 py-3 font-medium">{h.state}</td>
-                        <td className="px-5 py-3 text-right text-muted-foreground">{h.scans}</td>
-                        <td className="px-5 py-3 text-right text-muted-foreground">{h.flagged}</td>
-                        <td className="px-5 py-3 text-muted-foreground">{h.batches}</td>
-                        <td className="px-5 py-3">
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                              h.risk === "High"
-                                ? "bg-destructive/15 text-destructive"
-                                : h.risk === "Medium"
-                                  ? "bg-warning/15 text-warning"
-                                  : "bg-primary/12 text-primary"
-                            }`}
-                          >
-                            {h.risk}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          </section>
-        )}
-      </div>
-    </main>
+        <footer className="mt-12 border-t border-border pt-6 text-sm text-muted-foreground">
+          VitAlign provides general information only. Always follow the advice of your doctor or
+          pharmacist.
+        </footer>
+      </main>
+    </div>
   );
 }
 
-function AgentRow({
-  icon: Icon,
+function SectionCard({
   title,
-  text,
-  tone,
+  icon: Icon,
+  children,
 }: {
-  icon: typeof Bot;
   title: string;
-  text: string;
-  tone: "good" | "warn" | "bad";
+  icon: typeof Pill;
+  children: React.ReactNode;
 }) {
-  const toneClass =
-    tone === "good"
-      ? "border-primary/40 bg-primary/8 text-primary"
-      : tone === "warn"
-        ? "border-warning/40 bg-warning/8 text-warning"
-        : "border-destructive/40 bg-destructive/8 text-destructive";
   return (
-    <div className={`rounded-xl border p-4 ${toneClass}`}>
-      <div className="flex items-center gap-2 text-sm font-semibold">
-        <Icon className="h-4 w-4" /> {title}
+    <section className="rounded-lg border border-border bg-card">
+      <div className="flex items-center gap-3 border-b border-border px-6 py-5">
+        <Icon className="size-6 text-primary" aria-hidden="true" />
+        <h2 className="text-xl font-bold">{title}</h2>
       </div>
-      <p className="mt-1.5 text-sm text-muted-foreground">{text}</p>
+      <div className="p-6">{children}</div>
+    </section>
+  );
+}
+
+function MedicinesTab({
+  medicines,
+  onAdd,
+  onRemove,
+}: {
+  medicines: Medicine[];
+  onAdd: (m: Medicine) => void;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <div className="grid gap-6">
+      <SectionCard title="Add or Verify Medicine" icon={Plus}>
+        <p className="mb-5 text-muted-foreground">
+          Select a medicine below to add it to your list and check whether it is genuine.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {SAMPLE_MEDICINES.map((m) => {
+            const added = medicines.some((x) => x.id === m.id);
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => onAdd(m)}
+                disabled={added}
+                className="flex min-h-16 items-center justify-between gap-4 rounded-md border-2 border-border bg-card px-4 py-3 text-left hover:bg-secondary disabled:opacity-60"
+              >
+                <span className="min-w-0">
+                  <span className="block font-semibold">{m.name}</span>
+                  <span className="block text-sm text-muted-foreground">{m.purpose}</span>
+                </span>
+                <span className="shrink-0 text-sm font-semibold text-primary">
+                  {added ? "Added" : "Add"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Your Medicine List" icon={Pill}>
+        {medicines.length === 0 ? (
+          <p className="text-muted-foreground">
+            No medicines added yet. Use the buttons above, or select "Load Sample Patient Case".
+          </p>
+        ) : (
+          <ul className="grid gap-5">
+            {medicines.map((m) => (
+              <li key={m.id} className="rounded-md border border-border">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-4">
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-bold">
+                      {m.name} — {m.purpose}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">{m.note}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onRemove(m.id)}
+                    className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-md border border-border px-4 font-semibold hover:bg-secondary"
+                  >
+                    <Trash2 className="size-5" aria-hidden="true" />
+                    Remove
+                  </button>
+                </div>
+                {m.status === "verified" ? (
+                  <p className="flex items-start gap-3 rounded-b-md border-t-4 border-[oklch(0.5_0.14_150)] bg-[oklch(0.97_0.03_150)] px-5 py-4 font-semibold text-[oklch(0.38_0.12_150)]">
+                    <ShieldCheck className="mt-0.5 size-6 shrink-0" aria-hidden="true" />
+                    Verified Genuine — Passed Government Schedule H2 verification
+                  </p>
+                ) : (
+                  <p className="flex items-start gap-3 rounded-b-md border-t-4 border-destructive bg-[oklch(0.96_0.03_27)] px-5 py-4 font-semibold text-[oklch(0.45_0.2_27)]">
+                    <AlertTriangle className="mt-0.5 size-6 shrink-0" aria-hidden="true" />
+                    DO NOT CONSUME — This batch was recalled by national drug safety authorities due
+                    to quality failure
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectionCard>
+    </div>
+  );
+}
+
+function SymptomsTab({
+  selected,
+  toggle,
+  showFindings,
+  onCheck,
+}: {
+  selected: string[];
+  toggle: (id: string) => void;
+  showFindings: boolean;
+  onCheck: () => void;
+}) {
+  return (
+    <div className="grid gap-6">
+      <SectionCard title="Symptom Safety Check" icon={Stethoscope}>
+        <p className="mb-5 font-semibold">Select any symptom you are currently experiencing:</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {SYMPTOMS.map((s) => {
+            const on = selected.includes(s.id);
+            return (
+              <label
+                key={s.id}
+                className={`flex min-h-16 cursor-pointer items-center gap-4 rounded-md border-2 px-4 py-3 ${
+                  on ? "border-primary bg-secondary" : "border-border bg-card hover:bg-secondary"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={on}
+                  onChange={() => toggle(s.id)}
+                  className="size-6 shrink-0 accent-[oklch(0.55_0.21_262)]"
+                />
+                <span className="font-medium">{s.label}</span>
+              </label>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={onCheck}
+          disabled={selected.length === 0}
+          className="mt-6 inline-flex min-h-14 items-center gap-2 rounded-md bg-primary px-6 font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+        >
+          <FileText className="size-5" aria-hidden="true" />
+          Check Possible Causes
+        </button>
+      </SectionCard>
+
+      {showFindings && selected.length > 0 && (
+        <SectionCard title="Findings Summary" icon={FileText}>
+          <h3 className="mb-4 text-lg font-bold">Probable Cause Breakdown</h3>
+          <ul className="grid gap-5">
+            {CAUSES.map((c) => (
+              <li key={c.label}>
+                <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="font-medium">{c.label}</span>
+                  <span className="font-bold">{c.percent}%</span>
+                </div>
+                <div className="h-4 w-full overflow-hidden rounded-full bg-secondary">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${c.percent}%`,
+                      backgroundColor:
+                        c.tone === "primary"
+                          ? "oklch(0.55 0.21 262)"
+                          : c.tone === "danger"
+                            ? "oklch(0.58 0.22 27)"
+                            : "oklch(0.62 0.15 62)",
+                    }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          <h3 className="mt-8 mb-3 text-lg font-bold">Action Recommended</h3>
+          <p className="flex items-start gap-3 rounded-md border-l-4 border-primary bg-secondary px-5 py-4">
+            <Info className="mt-0.5 size-6 shrink-0 text-primary" aria-hidden="true" />
+            Please share this summary with your treating physician or pharmacist. Do not alter or
+            stop prescribed medicines without medical supervision.
+          </p>
+        </SectionCard>
+      )}
+    </div>
+  );
+}
+
+function ScheduleTab() {
+  return (
+    <div className="grid gap-6">
+      <SectionCard title="Daily Medicine Schedule" icon={Clock}>
+        <ul className="grid gap-4">
+          {SCHEDULE.map((s) => (
+            <li
+              key={s.time}
+              className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 rounded-md border border-border px-5 py-4 sm:flex sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <p className="font-bold">{s.time}</p>
+                <p className="text-muted-foreground">{s.text}</p>
+              </div>
+              <span className="inline-flex shrink-0 items-center gap-2 rounded-md bg-secondary px-3 py-2 font-semibold">
+                <Clock className="size-5" aria-hidden="true" />
+                {s.clock}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </SectionCard>
+
+      <div className="flex items-start gap-3 rounded-lg border-2 border-[oklch(0.62_0.15_62)] bg-[oklch(0.98_0.03_80)] px-6 py-5">
+        <AlertTriangle className="mt-0.5 size-7 shrink-0 text-[oklch(0.5_0.13_62)]" aria-hidden="true" />
+        <p className="font-semibold text-[oklch(0.35_0.08_62)]">
+          Dietary Notice: Do not consume milk, yogurt, or calcium-rich dairy within 2 hours of taking
+          Ciprofloxacin to ensure proper medicine absorption.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function NoticesTab({ verified, total }: { verified: number; total: number }) {
+  const metrics = [
+    { label: "Total Medicines Verified", value: total, icon: Pill },
+    { label: "Flagged Batches Recorded", value: NOTICES.length, icon: AlertTriangle },
+    { label: "Verified Genuine Batches", value: verified, icon: CheckCircle2 },
+  ];
+  return (
+    <div className="grid gap-6">
+      <div className="grid gap-4 sm:grid-cols-3">
+        {metrics.map((m) => {
+          const Icon = m.icon;
+          return (
+            <div key={m.label} className="rounded-lg border border-border bg-card px-5 py-5">
+              <Icon className="size-6 text-primary" aria-hidden="true" />
+              <p className="mt-3 text-3xl font-bold">{m.value}</p>
+              <p className="text-muted-foreground">{m.label}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      <SectionCard title="Recent National Safety Notices" icon={Landmark}>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-left">
+            <thead>
+              <tr className="border-b-2 border-border">
+                <th className="px-3 py-3 font-bold">State</th>
+                <th className="px-3 py-3 font-bold">Medicine</th>
+                <th className="px-3 py-3 font-bold">Batch Number</th>
+                <th className="px-3 py-3 font-bold">Reported Problem</th>
+                <th className="px-3 py-3 font-bold">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {NOTICES.map((n) => (
+                <tr key={n.batch} className="border-b border-border">
+                  <td className="px-3 py-4 font-semibold">{n.state}</td>
+                  <td className="px-3 py-4">{n.medicine}</td>
+                  <td className="px-3 py-4">{n.batch}</td>
+                  <td className="px-3 py-4 font-semibold text-[oklch(0.45_0.2_27)]">{n.issue}</td>
+                  <td className="px-3 py-4 whitespace-nowrap">{n.date}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
     </div>
   );
 }
