@@ -123,13 +123,83 @@ const SCHEDULE = [
   },
 ];
 
-const NOTICES = [
-  { state: "Maharashtra", medicine: "Atorvastatin 20mg", batch: "AT-9032", issue: "Failed quality test", date: "12 Aug 2026" },
-  { state: "Delhi", medicine: "Metformin 500mg", batch: "MT-2210", issue: "Incorrect medicine strength", date: "09 Aug 2026" },
-  { state: "Gujarat", medicine: "Amoxicillin 500mg", batch: "AM-7745", issue: "Packaging and labelling fault", date: "04 Aug 2026" },
-  { state: "Tamil Nadu", medicine: "Paracetamol 650mg", batch: "PC-3391", issue: "Failed dissolution test", date: "28 Jul 2026" },
-  { state: "West Bengal", medicine: "Ranitidine 150mg", batch: "RN-5502", issue: "Impurity found in sample", date: "21 Jul 2026" },
+const CONFLICTS = [
+  {
+    id: "tel-pan",
+    pair: "Telmisartan 40mg + Pantoprazole 40mg",
+    effect:
+      "Taken together, this pair can lower your blood pressure more sharply than expected. This may cause the dizziness and lightheadedness you reported, especially when standing up.",
+    advice:
+      "Do not change either dose on your own. Ask your doctor whether the two medicines should be taken several hours apart.",
+    level: "moderate" as const,
+  },
+  {
+    id: "ator-batch",
+    pair: "Atorvastatin 20mg — Recalled Batch AT-9032",
+    effect:
+      "This strip comes from a batch that failed a government quality test. A faulty cholesterol medicine can cause the muscle pain and weakness you reported.",
+    advice:
+      "Stop using this strip. Contact your clinic or pharmacy immediately to have it replaced with a genuine batch.",
+    level: "high" as const,
+  },
+  {
+    id: "cipro-food",
+    pair: "Ciprofloxacin 500mg + Milk or Dairy Foods",
+    effect:
+      "Calcium in milk, yogurt or cheese blocks the medicine from being absorbed properly, which can cause stomach discomfort and reduce the benefit of the treatment.",
+    advice:
+      "Keep a gap of at least 2 hours between this medicine and any dairy food. No dose change is needed.",
+    level: "low" as const,
+  },
 ];
+
+const NOTICES = [
+  { state: "Maharashtra", brand: "Atorva-Guard 20", medicine: "Atorvastatin 20mg", batch: "AT-9032", mfg: "Mar 2026", issue: "Failed dissolution test", date: "12 Aug 2026" },
+  { state: "Maharashtra", brand: "Panto-Relief 40", medicine: "Pantoprazole 40mg", batch: "PN-8814", mfg: "Feb 2026", issue: "Discolouration of tablets", date: "07 Aug 2026" },
+  { state: "Delhi", brand: "Glucomet 500", medicine: "Metformin 500mg", batch: "MT-2210", mfg: "Jan 2026", issue: "Incorrect medicine strength", date: "09 Aug 2026" },
+  { state: "Delhi", brand: "Cipro-Safe 500", medicine: "Ciprofloxacin 500mg", batch: "CP-6621", mfg: "Apr 2026", issue: "Impurity found in sample", date: "02 Aug 2026" },
+  { state: "Gujarat", brand: "Amoxil-G 500", medicine: "Amoxicillin 500mg", batch: "AM-7745", mfg: "Feb 2026", issue: "Packaging and labelling fault", date: "04 Aug 2026" },
+  { state: "Uttar Pradesh", brand: "Parafast 650", medicine: "Paracetamol 650mg", batch: "PC-3391", mfg: "Dec 2025", issue: "Failed dissolution test", date: "28 Jul 2026" },
+  { state: "Karnataka", brand: "Ranitab 150", medicine: "Ranitidine 150mg", batch: "RN-5502", mfg: "Nov 2025", issue: "Impurity found in sample", date: "21 Jul 2026" },
+  { state: "Tamil Nadu", brand: "Telmi-Care 40", medicine: "Telmisartan 40mg", batch: "TL-4471", mfg: "Mar 2026", issue: "Moisture damage in packing", date: "18 Jul 2026" },
+  { state: "West Bengal", brand: "Azi-Cure 500", medicine: "Azithromycin 500mg", batch: "AZ-1207", mfg: "Jan 2026", issue: "Discolouration of tablets", date: "10 Jul 2026" },
+];
+
+type Risk = "high" | "moderate" | "normal";
+
+const REGIONS: { state: string; risk: Risk; alerts: number }[] = [
+  { state: "Maharashtra", risk: "high", alerts: 2 },
+  { state: "Delhi", risk: "high", alerts: 2 },
+  { state: "Gujarat", risk: "moderate", alerts: 1 },
+  { state: "Uttar Pradesh", risk: "high", alerts: 1 },
+  { state: "Karnataka", risk: "moderate", alerts: 1 },
+  { state: "Tamil Nadu", risk: "normal", alerts: 1 },
+  { state: "West Bengal", risk: "normal", alerts: 1 },
+  { state: "Rajasthan", risk: "normal", alerts: 0 },
+  { state: "Kerala", risk: "normal", alerts: 0 },
+];
+
+const RISK_STYLE: Record<Risk, { bg: string; border: string; text: string; label: string }> = {
+  high: {
+    bg: "oklch(0.94 0.05 27)",
+    border: "oklch(0.58 0.22 27)",
+    text: "oklch(0.42 0.19 27)",
+    label: "High Alert",
+  },
+  moderate: {
+    bg: "oklch(0.96 0.05 80)",
+    border: "oklch(0.68 0.15 70)",
+    text: "oklch(0.42 0.11 62)",
+    label: "Moderate Alert",
+  },
+  normal: {
+    bg: "oklch(0.96 0.04 150)",
+    border: "oklch(0.55 0.13 150)",
+    text: "oklch(0.36 0.11 150)",
+    label: "Normal",
+  },
+};
+
 
 const TABS = [
   { id: "medicines", label: "Check Medicines", icon: Pill },
