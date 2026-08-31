@@ -601,44 +601,108 @@ function ScheduleTab() {
 }
 
 function NoticesTab({ verified, total }: { verified: number; total: number }) {
+  const [region, setRegion] = useState<string | null>(null);
+
   const metrics = [
-    { label: "Total Medicines Verified", value: total, icon: Pill },
-    { label: "Flagged Batches Recorded", value: NOTICES.length, icon: AlertTriangle },
-    { label: "Verified Genuine Batches", value: verified, icon: CheckCircle2 },
+    { label: "Total Medicines Verified", value: "1,248", icon: Pill },
+    { label: "Flagged Substandard Rate", value: "10.5%", icon: AlertTriangle },
+    { label: "High-Risk Regional Hotspots", value: "3 Active Zones", icon: MapPin },
+    { label: "Recalled Batches Cataloged", value: "42", icon: CheckCircle2 },
   ];
+
+  const rows = region ? NOTICES.filter((n) => n.state === region) : NOTICES;
+
   return (
     <div className="grid gap-6">
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {metrics.map((m) => {
           const Icon = m.icon;
           return (
             <div key={m.label} className="rounded-lg border border-border bg-card px-5 py-5">
               <Icon className="size-6 text-primary" aria-hidden="true" />
-              <p className="mt-3 text-3xl font-bold">{m.value}</p>
+              <p className="mt-3 text-2xl font-bold">{m.value}</p>
               <p className="text-muted-foreground">{m.label}</p>
             </div>
           );
         })}
       </div>
 
+      <p className="text-sm text-muted-foreground">
+        Your personal record: {verified} of {total} medicines in your list are confirmed genuine.
+      </p>
+
+      <SectionCard title="Regional Safety Map" icon={MapPin}>
+        <p className="mb-5 text-muted-foreground">
+          Select a state to see only the safety notices reported there. Select it again to see all
+          notices.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {REGIONS.map((r) => {
+            const s = RISK_STYLE[r.risk];
+            const active = region === r.state;
+            return (
+              <button
+                key={r.state}
+                type="button"
+                onClick={() => setRegion(active ? null : r.state)}
+                aria-pressed={active}
+                className={`flex min-h-20 items-center justify-between gap-4 rounded-md border-2 px-4 py-3 text-left ${
+                  active ? "ring-4 ring-primary/40" : ""
+                }`}
+                style={{ backgroundColor: s.bg, borderColor: s.border, color: s.text }}
+              >
+                <span className="min-w-0">
+                  <span className="block text-lg font-bold">{r.state}</span>
+                  <span className="block text-sm font-semibold">{s.label}</span>
+                </span>
+                <span className="shrink-0 text-right">
+                  <span className="block text-2xl font-bold">{r.alerts}</span>
+                  <span className="block text-sm">notices</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <ul className="mt-6 flex flex-wrap items-center gap-5 text-sm font-semibold">
+          {(["normal", "moderate", "high"] as Risk[]).map((k) => (
+            <li key={k} className="flex items-center gap-2">
+              <span
+                className="inline-block size-4 rounded-sm border"
+                style={{ backgroundColor: RISK_STYLE[k].bg, borderColor: RISK_STYLE[k].border }}
+                aria-hidden="true"
+              />
+              {RISK_STYLE[k].label}
+            </li>
+          ))}
+        </ul>
+      </SectionCard>
+
       <SectionCard title="Recent National Safety Notices" icon={Landmark}>
+        <p className="mb-5 text-muted-foreground">
+          {region ? `Showing notices reported in ${region}.` : "Showing notices from all states."}
+        </p>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="border-b-2 border-border">
                 <th className="px-3 py-3 font-bold">State</th>
+                <th className="px-3 py-3 font-bold">Brand Name</th>
                 <th className="px-3 py-3 font-bold">Medicine</th>
                 <th className="px-3 py-3 font-bold">Batch Number</th>
+                <th className="px-3 py-3 font-bold whitespace-nowrap">Made In</th>
                 <th className="px-3 py-3 font-bold">Reported Problem</th>
                 <th className="px-3 py-3 font-bold">Date</th>
               </tr>
             </thead>
             <tbody>
-              {NOTICES.map((n) => (
+              {rows.map((n) => (
                 <tr key={n.batch} className="border-b border-border">
                   <td className="px-3 py-4 font-semibold">{n.state}</td>
+                  <td className="px-3 py-4">{n.brand}</td>
                   <td className="px-3 py-4">{n.medicine}</td>
                   <td className="px-3 py-4">{n.batch}</td>
+                  <td className="px-3 py-4 whitespace-nowrap">{n.mfg}</td>
                   <td className="px-3 py-4 font-semibold text-[oklch(0.45_0.2_27)]">{n.issue}</td>
                   <td className="px-3 py-4 whitespace-nowrap">{n.date}</td>
                 </tr>
@@ -646,7 +710,11 @@ function NoticesTab({ verified, total }: { verified: number; total: number }) {
             </tbody>
           </table>
         </div>
+        {rows.length === 0 && (
+          <p className="mt-5 text-muted-foreground">No notices recorded for this state.</p>
+        )}
       </SectionCard>
     </div>
+
   );
 }
