@@ -60,6 +60,8 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-warning: var(--warning);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
 }
 
 :root {
@@ -147,22 +149,4 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
   }
-}
-
-@utility panel-glow {
-  box-shadow: var(--glow-brand);
-}
-
-@utility text-gradient-brand {
-  background: var(--gradient-brand);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-@utility bg-grid {
-  background-image:
-    linear-gradient(oklch(0.78 0.16 165 / 6%) 1px, transparent 1px),
-    linear-gradient(90deg, oklch(0.78 0.13 210 / 6%) 1px, transparent 1px);
-  background-size: 44px 44px;
 }
