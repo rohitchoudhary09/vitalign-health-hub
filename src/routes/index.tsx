@@ -493,41 +493,75 @@ function SymptomsTab({
       </SectionCard>
 
       {showFindings && selected.length > 0 && (
-        <SectionCard title="Findings Summary" icon={FileText}>
-          <h3 className="mb-4 text-lg font-bold">Probable Cause Breakdown</h3>
-          <ul className="grid gap-5">
-            {CAUSES.map((c) => (
-              <li key={c.label}>
-                <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="font-medium">{c.label}</span>
-                  <span className="font-bold">{c.percent}%</span>
-                </div>
-                <div className="h-4 w-full overflow-hidden rounded-full bg-secondary">
-                  <div
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${c.percent}%`,
-                      backgroundColor:
-                        c.tone === "primary"
-                          ? "oklch(0.55 0.21 262)"
-                          : c.tone === "danger"
-                            ? "oklch(0.58 0.22 27)"
-                            : "oklch(0.62 0.15 62)",
-                    }}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
+        <>
+          <SectionCard title="Active Medicine Conflict and Action Report" icon={AlertTriangle}>
+            <p className="mb-5 text-muted-foreground">
+              Based on the symptoms you selected, the following medicines in your list appear to be
+              working against each other.
+            </p>
+            <ul className="grid gap-5">
+              {CONFLICTS.map((c) => {
+                const s = RISK_STYLE[c.level === "high" ? "high" : c.level === "moderate" ? "moderate" : "normal"];
+                return (
+                  <li
+                    key={c.id}
+                    className="rounded-md border-l-4 px-5 py-5"
+                    style={{ borderColor: s.border, backgroundColor: s.bg }}
+                  >
+                    <p className="flex items-start gap-3 text-lg font-bold" style={{ color: s.text }}>
+                      <AlertTriangle className="mt-1 size-6 shrink-0" aria-hidden="true" />
+                      Conflict Detected: {c.pair}
+                    </p>
+                    <p className="mt-3">
+                      <span className="font-semibold">What this can cause: </span>
+                      {c.effect}
+                    </p>
+                    <p className="mt-3 rounded-md bg-card px-4 py-3 font-semibold" style={{ color: s.text }}>
+                      Advice: {c.advice}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          </SectionCard>
 
-          <h3 className="mt-8 mb-3 text-lg font-bold">Action Recommended</h3>
-          <p className="flex items-start gap-3 rounded-md border-l-4 border-primary bg-secondary px-5 py-4">
-            <Info className="mt-0.5 size-6 shrink-0 text-primary" aria-hidden="true" />
-            Please share this summary with your treating physician or pharmacist. Do not alter or
-            stop prescribed medicines without medical supervision.
-          </p>
-        </SectionCard>
+          <SectionCard title="Findings Summary" icon={FileText}>
+            <h3 className="mb-4 text-lg font-bold">Probable Cause Breakdown</h3>
+            <ul className="grid gap-5">
+              {CAUSES.map((c) => (
+                <li key={c.label}>
+                  <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="font-medium">{c.label}</span>
+                    <span className="font-bold">{c.percent}%</span>
+                  </div>
+                  <div className="h-4 w-full overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${c.percent}%`,
+                        backgroundColor:
+                          c.tone === "primary"
+                            ? "oklch(0.55 0.21 262)"
+                            : c.tone === "danger"
+                              ? "oklch(0.58 0.22 27)"
+                              : "oklch(0.62 0.15 62)",
+                      }}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <h3 className="mt-8 mb-3 text-lg font-bold">Action Recommended</h3>
+            <p className="flex items-start gap-3 rounded-md border-l-4 border-primary bg-secondary px-5 py-4">
+              <Info className="mt-0.5 size-6 shrink-0 text-primary" aria-hidden="true" />
+              Please share this summary with your treating physician or pharmacist. Do not alter or
+              stop prescribed medicines without medical supervision.
+            </p>
+          </SectionCard>
+        </>
       )}
+
     </div>
   );
 }
