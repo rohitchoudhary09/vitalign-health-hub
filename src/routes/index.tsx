@@ -15,6 +15,8 @@ import {
   UserRound,
   Info,
   CheckCircle2,
+  MapPin,
+
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -123,13 +125,83 @@ const SCHEDULE = [
   },
 ];
 
-const NOTICES = [
-  { state: "Maharashtra", medicine: "Atorvastatin 20mg", batch: "AT-9032", issue: "Failed quality test", date: "12 Aug 2026" },
-  { state: "Delhi", medicine: "Metformin 500mg", batch: "MT-2210", issue: "Incorrect medicine strength", date: "09 Aug 2026" },
-  { state: "Gujarat", medicine: "Amoxicillin 500mg", batch: "AM-7745", issue: "Packaging and labelling fault", date: "04 Aug 2026" },
-  { state: "Tamil Nadu", medicine: "Paracetamol 650mg", batch: "PC-3391", issue: "Failed dissolution test", date: "28 Jul 2026" },
-  { state: "West Bengal", medicine: "Ranitidine 150mg", batch: "RN-5502", issue: "Impurity found in sample", date: "21 Jul 2026" },
+const CONFLICTS = [
+  {
+    id: "tel-pan",
+    pair: "Telmisartan 40mg + Pantoprazole 40mg",
+    effect:
+      "Taken together, this pair can lower your blood pressure more sharply than expected. This may cause the dizziness and lightheadedness you reported, especially when standing up.",
+    advice:
+      "Do not change either dose on your own. Ask your doctor whether the two medicines should be taken several hours apart.",
+    level: "moderate" as const,
+  },
+  {
+    id: "ator-batch",
+    pair: "Atorvastatin 20mg — Recalled Batch AT-9032",
+    effect:
+      "This strip comes from a batch that failed a government quality test. A faulty cholesterol medicine can cause the muscle pain and weakness you reported.",
+    advice:
+      "Stop using this strip. Contact your clinic or pharmacy immediately to have it replaced with a genuine batch.",
+    level: "high" as const,
+  },
+  {
+    id: "cipro-food",
+    pair: "Ciprofloxacin 500mg + Milk or Dairy Foods",
+    effect:
+      "Calcium in milk, yogurt or cheese blocks the medicine from being absorbed properly, which can cause stomach discomfort and reduce the benefit of the treatment.",
+    advice:
+      "Keep a gap of at least 2 hours between this medicine and any dairy food. No dose change is needed.",
+    level: "low" as const,
+  },
 ];
+
+const NOTICES = [
+  { state: "Maharashtra", brand: "Atorva-Guard 20", medicine: "Atorvastatin 20mg", batch: "AT-9032", mfg: "Mar 2026", issue: "Failed dissolution test", date: "12 Aug 2026" },
+  { state: "Maharashtra", brand: "Panto-Relief 40", medicine: "Pantoprazole 40mg", batch: "PN-8814", mfg: "Feb 2026", issue: "Discolouration of tablets", date: "07 Aug 2026" },
+  { state: "Delhi", brand: "Glucomet 500", medicine: "Metformin 500mg", batch: "MT-2210", mfg: "Jan 2026", issue: "Incorrect medicine strength", date: "09 Aug 2026" },
+  { state: "Delhi", brand: "Cipro-Safe 500", medicine: "Ciprofloxacin 500mg", batch: "CP-6621", mfg: "Apr 2026", issue: "Impurity found in sample", date: "02 Aug 2026" },
+  { state: "Gujarat", brand: "Amoxil-G 500", medicine: "Amoxicillin 500mg", batch: "AM-7745", mfg: "Feb 2026", issue: "Packaging and labelling fault", date: "04 Aug 2026" },
+  { state: "Uttar Pradesh", brand: "Parafast 650", medicine: "Paracetamol 650mg", batch: "PC-3391", mfg: "Dec 2025", issue: "Failed dissolution test", date: "28 Jul 2026" },
+  { state: "Karnataka", brand: "Ranitab 150", medicine: "Ranitidine 150mg", batch: "RN-5502", mfg: "Nov 2025", issue: "Impurity found in sample", date: "21 Jul 2026" },
+  { state: "Tamil Nadu", brand: "Telmi-Care 40", medicine: "Telmisartan 40mg", batch: "TL-4471", mfg: "Mar 2026", issue: "Moisture damage in packing", date: "18 Jul 2026" },
+  { state: "West Bengal", brand: "Azi-Cure 500", medicine: "Azithromycin 500mg", batch: "AZ-1207", mfg: "Jan 2026", issue: "Discolouration of tablets", date: "10 Jul 2026" },
+];
+
+type Risk = "high" | "moderate" | "normal";
+
+const REGIONS: { state: string; risk: Risk; alerts: number }[] = [
+  { state: "Maharashtra", risk: "high", alerts: 2 },
+  { state: "Delhi", risk: "high", alerts: 2 },
+  { state: "Gujarat", risk: "moderate", alerts: 1 },
+  { state: "Uttar Pradesh", risk: "high", alerts: 1 },
+  { state: "Karnataka", risk: "moderate", alerts: 1 },
+  { state: "Tamil Nadu", risk: "normal", alerts: 1 },
+  { state: "West Bengal", risk: "normal", alerts: 1 },
+  { state: "Rajasthan", risk: "normal", alerts: 0 },
+  { state: "Kerala", risk: "normal", alerts: 0 },
+];
+
+const RISK_STYLE: Record<Risk, { bg: string; border: string; text: string; label: string }> = {
+  high: {
+    bg: "oklch(0.94 0.05 27)",
+    border: "oklch(0.58 0.22 27)",
+    text: "oklch(0.42 0.19 27)",
+    label: "High Alert",
+  },
+  moderate: {
+    bg: "oklch(0.96 0.05 80)",
+    border: "oklch(0.68 0.15 70)",
+    text: "oklch(0.42 0.11 62)",
+    label: "Moderate Alert",
+  },
+  normal: {
+    bg: "oklch(0.96 0.04 150)",
+    border: "oklch(0.55 0.13 150)",
+    text: "oklch(0.36 0.11 150)",
+    label: "Normal",
+  },
+};
+
 
 const TABS = [
   { id: "medicines", label: "Check Medicines", icon: Pill },
@@ -423,41 +495,75 @@ function SymptomsTab({
       </SectionCard>
 
       {showFindings && selected.length > 0 && (
-        <SectionCard title="Findings Summary" icon={FileText}>
-          <h3 className="mb-4 text-lg font-bold">Probable Cause Breakdown</h3>
-          <ul className="grid gap-5">
-            {CAUSES.map((c) => (
-              <li key={c.label}>
-                <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="font-medium">{c.label}</span>
-                  <span className="font-bold">{c.percent}%</span>
-                </div>
-                <div className="h-4 w-full overflow-hidden rounded-full bg-secondary">
-                  <div
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${c.percent}%`,
-                      backgroundColor:
-                        c.tone === "primary"
-                          ? "oklch(0.55 0.21 262)"
-                          : c.tone === "danger"
-                            ? "oklch(0.58 0.22 27)"
-                            : "oklch(0.62 0.15 62)",
-                    }}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
+        <>
+          <SectionCard title="Active Medicine Conflict and Action Report" icon={AlertTriangle}>
+            <p className="mb-5 text-muted-foreground">
+              Based on the symptoms you selected, the following medicines in your list appear to be
+              working against each other.
+            </p>
+            <ul className="grid gap-5">
+              {CONFLICTS.map((c) => {
+                const s = RISK_STYLE[c.level === "high" ? "high" : c.level === "moderate" ? "moderate" : "normal"];
+                return (
+                  <li
+                    key={c.id}
+                    className="rounded-md border-l-4 px-5 py-5"
+                    style={{ borderColor: s.border, backgroundColor: s.bg }}
+                  >
+                    <p className="flex items-start gap-3 text-lg font-bold" style={{ color: s.text }}>
+                      <AlertTriangle className="mt-1 size-6 shrink-0" aria-hidden="true" />
+                      Conflict Detected: {c.pair}
+                    </p>
+                    <p className="mt-3">
+                      <span className="font-semibold">What this can cause: </span>
+                      {c.effect}
+                    </p>
+                    <p className="mt-3 rounded-md bg-card px-4 py-3 font-semibold" style={{ color: s.text }}>
+                      Advice: {c.advice}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          </SectionCard>
 
-          <h3 className="mt-8 mb-3 text-lg font-bold">Action Recommended</h3>
-          <p className="flex items-start gap-3 rounded-md border-l-4 border-primary bg-secondary px-5 py-4">
-            <Info className="mt-0.5 size-6 shrink-0 text-primary" aria-hidden="true" />
-            Please share this summary with your treating physician or pharmacist. Do not alter or
-            stop prescribed medicines without medical supervision.
-          </p>
-        </SectionCard>
+          <SectionCard title="Findings Summary" icon={FileText}>
+            <h3 className="mb-4 text-lg font-bold">Probable Cause Breakdown</h3>
+            <ul className="grid gap-5">
+              {CAUSES.map((c) => (
+                <li key={c.label}>
+                  <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="font-medium">{c.label}</span>
+                    <span className="font-bold">{c.percent}%</span>
+                  </div>
+                  <div className="h-4 w-full overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${c.percent}%`,
+                        backgroundColor:
+                          c.tone === "primary"
+                            ? "oklch(0.55 0.21 262)"
+                            : c.tone === "danger"
+                              ? "oklch(0.58 0.22 27)"
+                              : "oklch(0.62 0.15 62)",
+                      }}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <h3 className="mt-8 mb-3 text-lg font-bold">Action Recommended</h3>
+            <p className="flex items-start gap-3 rounded-md border-l-4 border-primary bg-secondary px-5 py-4">
+              <Info className="mt-0.5 size-6 shrink-0 text-primary" aria-hidden="true" />
+              Please share this summary with your treating physician or pharmacist. Do not alter or
+              stop prescribed medicines without medical supervision.
+            </p>
+          </SectionCard>
+        </>
       )}
+
     </div>
   );
 }
@@ -497,44 +603,108 @@ function ScheduleTab() {
 }
 
 function NoticesTab({ verified, total }: { verified: number; total: number }) {
+  const [region, setRegion] = useState<string | null>(null);
+
   const metrics = [
-    { label: "Total Medicines Verified", value: total, icon: Pill },
-    { label: "Flagged Batches Recorded", value: NOTICES.length, icon: AlertTriangle },
-    { label: "Verified Genuine Batches", value: verified, icon: CheckCircle2 },
+    { label: "Total Medicines Verified", value: "1,248", icon: Pill },
+    { label: "Flagged Substandard Rate", value: "10.5%", icon: AlertTriangle },
+    { label: "High-Risk Regional Hotspots", value: "3 Active Zones", icon: MapPin },
+    { label: "Recalled Batches Cataloged", value: "42", icon: CheckCircle2 },
   ];
+
+  const rows = region ? NOTICES.filter((n) => n.state === region) : NOTICES;
+
   return (
     <div className="grid gap-6">
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {metrics.map((m) => {
           const Icon = m.icon;
           return (
             <div key={m.label} className="rounded-lg border border-border bg-card px-5 py-5">
               <Icon className="size-6 text-primary" aria-hidden="true" />
-              <p className="mt-3 text-3xl font-bold">{m.value}</p>
+              <p className="mt-3 text-2xl font-bold">{m.value}</p>
               <p className="text-muted-foreground">{m.label}</p>
             </div>
           );
         })}
       </div>
 
+      <p className="text-sm text-muted-foreground">
+        Your personal record: {verified} of {total} medicines in your list are confirmed genuine.
+      </p>
+
+      <SectionCard title="Regional Safety Map" icon={MapPin}>
+        <p className="mb-5 text-muted-foreground">
+          Select a state to see only the safety notices reported there. Select it again to see all
+          notices.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {REGIONS.map((r) => {
+            const s = RISK_STYLE[r.risk];
+            const active = region === r.state;
+            return (
+              <button
+                key={r.state}
+                type="button"
+                onClick={() => setRegion(active ? null : r.state)}
+                aria-pressed={active}
+                className={`flex min-h-20 items-center justify-between gap-4 rounded-md border-2 px-4 py-3 text-left ${
+                  active ? "ring-4 ring-primary/40" : ""
+                }`}
+                style={{ backgroundColor: s.bg, borderColor: s.border, color: s.text }}
+              >
+                <span className="min-w-0">
+                  <span className="block text-lg font-bold">{r.state}</span>
+                  <span className="block text-sm font-semibold">{s.label}</span>
+                </span>
+                <span className="shrink-0 text-right">
+                  <span className="block text-2xl font-bold">{r.alerts}</span>
+                  <span className="block text-sm">notices</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <ul className="mt-6 flex flex-wrap items-center gap-5 text-sm font-semibold">
+          {(["normal", "moderate", "high"] as Risk[]).map((k) => (
+            <li key={k} className="flex items-center gap-2">
+              <span
+                className="inline-block size-4 rounded-sm border"
+                style={{ backgroundColor: RISK_STYLE[k].bg, borderColor: RISK_STYLE[k].border }}
+                aria-hidden="true"
+              />
+              {RISK_STYLE[k].label}
+            </li>
+          ))}
+        </ul>
+      </SectionCard>
+
       <SectionCard title="Recent National Safety Notices" icon={Landmark}>
+        <p className="mb-5 text-muted-foreground">
+          {region ? `Showing notices reported in ${region}.` : "Showing notices from all states."}
+        </p>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="border-b-2 border-border">
                 <th className="px-3 py-3 font-bold">State</th>
+                <th className="px-3 py-3 font-bold">Brand Name</th>
                 <th className="px-3 py-3 font-bold">Medicine</th>
                 <th className="px-3 py-3 font-bold">Batch Number</th>
+                <th className="px-3 py-3 font-bold whitespace-nowrap">Made In</th>
                 <th className="px-3 py-3 font-bold">Reported Problem</th>
                 <th className="px-3 py-3 font-bold">Date</th>
               </tr>
             </thead>
             <tbody>
-              {NOTICES.map((n) => (
+              {rows.map((n) => (
                 <tr key={n.batch} className="border-b border-border">
                   <td className="px-3 py-4 font-semibold">{n.state}</td>
+                  <td className="px-3 py-4">{n.brand}</td>
                   <td className="px-3 py-4">{n.medicine}</td>
                   <td className="px-3 py-4">{n.batch}</td>
+                  <td className="px-3 py-4 whitespace-nowrap">{n.mfg}</td>
                   <td className="px-3 py-4 font-semibold text-[oklch(0.45_0.2_27)]">{n.issue}</td>
                   <td className="px-3 py-4 whitespace-nowrap">{n.date}</td>
                 </tr>
@@ -542,7 +712,11 @@ function NoticesTab({ verified, total }: { verified: number; total: number }) {
             </tbody>
           </table>
         </div>
+        {rows.length === 0 && (
+          <p className="mt-5 text-muted-foreground">No notices recorded for this state.</p>
+        )}
       </SectionCard>
     </div>
+
   );
 }
